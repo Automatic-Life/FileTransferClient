@@ -42,6 +42,30 @@ void splitFile(std::ifstream& file, std::vector<char*>& container, std::uint32_t
 	buf = nullptr;
 }
 
+void excludeSocket(std::vector<SOCKET*>& openSockets, SOCKET* soc)
+{
+	for (auto in : openSockets)
+	{
+		if (in == soc) { in = nullptr; }
+	}
+}
+
+void exitProgramm(std::vector<SOCKET*>& openSockets, std::vector<ADDRINFO*> openAddrInfo)
+{
+	for (auto in : openSockets)
+	{
+		if (in == nullptr) { continue; }
+		closesocket(*in);
+	}
+	for (auto in : openAddrInfo)
+	{
+		if (in == nullptr) { continue; }
+		freeaddrinfo(in);
+	}
+	WSACleanup();
+	exit(1);
+}
+
 int main(int argc, char* argv[])
 {
 	const char* IP = argv[1];
@@ -50,6 +74,8 @@ int main(int argc, char* argv[])
 	const char* transmissionFileName = argv[4];
 	const std::string UDPtimeout = argv[5];
 
+	std::vector<SOCKET*> openSockets;
+	std::vector<ADDRINFO*> openAddrInfo;
 	
 	WSADATA wsaData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -70,28 +96,24 @@ int main(int argc, char* argv[])
 	if (iResult)
 	{
 		std::cout << "getaddrinfo() failed with error " << iResult;
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
+	openAddrInfo.push_back(addrResult);
 
 	SOCKET socketTCP = INVALID_SOCKET;
 	socketTCP = socket(addrResult->ai_family, addrResult->ai_socktype, addrResult->ai_protocol);
 	if (socketTCP == INVALID_SOCKET)
 	{
 		std::cout << "Socket creation failed";
-		freeaddrinfo(addrResult);
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
+	openSockets.push_back(&socketTCP);
 
 	iResult = connect(socketTCP, addrResult->ai_addr, (int)addrResult->ai_addrlen);
 	if (iResult == SOCKET_ERROR)
 	{
 		std::cout << "Connection to server failed\n";
-		closesocket(socketTCP);
-		freeaddrinfo(addrResult);
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
 	else { std::cout << "Connected\n";}
 	
@@ -104,10 +126,7 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "Uploaded file is too big";
 		transmissionFile.close();
-		closesocket(socketTCP);
-		freeaddrinfo(addrResult);
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
 	else {transmissionFile.seekg(0, std::ios::beg);}
 	
@@ -131,23 +150,18 @@ int main(int argc, char* argv[])
 	if (iResult)
 	{
 		std::cout << "getaddrinfo() failed with error " << iResult;
-		closesocket(socketTCP);
-		freeaddrinfo(addrResult);
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
+	openAddrInfo.push_back(addrResultUDP);
 
 	SOCKET socketUDP = INVALID_SOCKET;
 	socketUDP = socket(addrResultUDP->ai_family, addrResultUDP->ai_socktype, (int)addrResultUDP->ai_protocol);
 	if (socketUDP == INVALID_SOCKET)
 	{
 		std::cout << "Socket creation failed";
-		closesocket(socketTCP);
-		freeaddrinfo(addrResultUDP);
-		freeaddrinfo(addrResult);
-		WSACleanup();
-		exit(1);
+		exitProgramm(openSockets, openAddrInfo);
 	}
+	openSockets.push_back(&socketUDP);
 	
 	// Sending fileSize
 	char fileSizeBuf[sizeof(std::uint64_t)];
