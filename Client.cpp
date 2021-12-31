@@ -44,7 +44,7 @@ void splitFile(std::ifstream& file, std::vector<char*>& container, std::uint32_t
 
 void excludeSocket(std::vector<SOCKET*>& openSockets, SOCKET* soc)
 {
-	for (auto in : openSockets)
+	for (auto& in : openSockets)
 	{
 		if (in == soc) { in = nullptr; }
 	}
@@ -52,12 +52,12 @@ void excludeSocket(std::vector<SOCKET*>& openSockets, SOCKET* soc)
 
 void exitProgramm(std::vector<SOCKET*>& openSockets, std::vector<ADDRINFO*> openAddrInfo)
 {
-	for (auto in : openSockets)
+	for (auto& in : openSockets)
 	{
 		if (in == nullptr) { continue; }
 		closesocket(*in);
 	}
-	for (auto in : openAddrInfo)
+	for (auto& in : openAddrInfo)
 	{
 		if (in == nullptr) { continue; }
 		freeaddrinfo(in);
