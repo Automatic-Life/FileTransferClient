@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <list>
 #include <string>
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -42,24 +43,20 @@ void splitFile(std::ifstream& file, std::vector<char*>& container, std::uint32_t
 	buf = nullptr;
 }
 
-void excludeSocket(std::vector<SOCKET*>& openSockets, SOCKET* soc)
+void excludeSocket(std::list<SOCKET*>& openSockets, SOCKET* soc)
 {
-	for (auto& in : openSockets)
-	{
-		if (in == soc) { in = nullptr; }
-	}
+	closesocket(*soc);
+	openSockets.remove(soc);
 }
 
-void exitProgramm(std::vector<SOCKET*>& openSockets, std::vector<ADDRINFO*> openAddrInfo)
+void exitProgramm(std::list<SOCKET*>& openSockets, std::list<ADDRINFO*> openAddrInfo)
 {
 	for (auto& in : openSockets)
 	{
-		if (in == nullptr) { continue; }
 		closesocket(*in);
 	}
 	for (auto& in : openAddrInfo)
 	{
-		if (in == nullptr) { continue; }
 		freeaddrinfo(in);
 	}
 	WSACleanup();
@@ -74,8 +71,8 @@ int main(int argc, char* argv[])
 	const char* transmissionFileName = argv[4];
 	const std::string UDPtimeout = argv[5];
 
-	std::vector<SOCKET*> openSockets;
-	std::vector<ADDRINFO*> openAddrInfo;
+	std::list<SOCKET*> openSockets;
+	std::list<ADDRINFO*> openAddrInfo;
 	
 	WSADATA wsaData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
